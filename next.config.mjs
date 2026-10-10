@@ -4,6 +4,14 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  async rewrites() {
+    return [
+      {
+        source: '/Models/:path*',
+        destination: '/models/:path*',
+      },
+    ];
+  },
 };
 
 export default nextConfig;

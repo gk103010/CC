@@ -1,10 +1,35 @@
 'use client';
 
-import React, { useState, useEffect, Suspense, useRef } from 'react';
+import React, { useState, useEffect, Suspense, useRef, Component } from 'react';
 import { Canvas } from '@react-three/fiber';
 import CCObject from './CCObject';
 import CCEnvironment from './CCEnvironment';
 import FallbackVisual from './FallbackVisual';
+
+class SceneErrorBoundary extends Component<
+  { fallback: React.ReactNode; children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { fallback: React.ReactNode; children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: unknown) {
+    console.warn('3D Scene loading error (handled):', error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
+}
 
 /**
  * WebGL Capability Detection Helper
@@ -88,27 +113,29 @@ export const CCScene: React.FC = () => {
         justifyContent: 'center',
       }}
     >
-      <Suspense fallback={<FallbackVisual />}>
-        <Canvas
-          frameloop={isInView ? 'always' : 'never'}
-          dpr={[1, typeof window !== 'undefined' ? Math.min(window.devicePixelRatio, 2) : 1.5]}
-          gl={{
-            antialias: true,
-            alpha: true,
-            powerPreference: 'high-performance',
-            toneMappingExposure: 1.5,
-          }}
-          camera={{
-            position: [0, 0, 3.8],
-            fov: 42,
-          }}
-          style={{ width: '100%', height: '100%' }}
-          onError={() => setHasError(true)}
-        >
-          <CCEnvironment />
-          <CCObject reducedMotion={reducedMotion} />
-        </Canvas>
-      </Suspense>
+      <SceneErrorBoundary fallback={<FallbackVisual />}>
+        <Suspense fallback={<FallbackVisual />}>
+          <Canvas
+            frameloop={isInView ? 'always' : 'never'}
+            dpr={[1, typeof window !== 'undefined' ? Math.min(window.devicePixelRatio, 2) : 1.5]}
+            gl={{
+              antialias: true,
+              alpha: true,
+              powerPreference: 'high-performance',
+              toneMappingExposure: 1.5,
+            }}
+            camera={{
+              position: [0, 0, 3.8],
+              fov: 42,
+            }}
+            style={{ width: '100%', height: '100%' }}
+            onError={() => setHasError(true)}
+          >
+            <CCEnvironment />
+            <CCObject reducedMotion={reducedMotion} />
+          </Canvas>
+        </Suspense>
+      </SceneErrorBoundary>
     </div>
   );
 };
