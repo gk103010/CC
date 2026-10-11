@@ -38,6 +38,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Determine incoming or fallback domain headers to satisfy FormSubmit origin check
+    const origin =
+      request.headers.get('origin') ||
+      request.headers.get('referer') ||
+      'https://chosencreators.com';
+
     // Payload for FormSubmit gateway
     const payload = {
       name: name.trim(),
@@ -57,20 +63,34 @@ export async function POST(request: NextRequest) {
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
+        Origin: origin,
+        Referer: origin,
       },
       body: JSON.stringify(payload),
     });
 
     const result = await response.json().catch(() => null);
 
-    if (!response.ok) {
+    // FormSubmit returns { success: "false", message: "This form needs Activation..." } on the first submission
+    if (result && typeof result.message === 'string' && /activat/i.test(result.message)) {
+      return NextResponse.json({
+        success: true,
+        needsActivation: true,
+        message:
+          "Form received! FormSubmit has sent a one-time 'Activate Form' verification email to xyzagency.dev@gmail.com. Please click the link in your inbox to enable automatic delivery.",
+      });
+    }
+
+    if (!response.ok || (result && (result.success === 'false' || result.success === false))) {
       console.error('FormSubmit error response:', result);
       return NextResponse.json(
         {
           success: false,
-          error: result?.message || 'Failed to dispatch email through gateway',
+          error:
+            result?.message ||
+            'Email gateway service did not acknowledge submission. Please try again or email directly.',
         },
-        { status: response.status || 500 }
+        { status: response.ok ? 400 : response.status || 500 }
       );
     }
 

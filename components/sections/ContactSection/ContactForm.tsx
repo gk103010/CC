@@ -57,6 +57,7 @@ export const ContactForm: React.FC = () => {
   const [errors, setErrors] = useState<FormErrors>({});
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isActivationPending, setIsActivationPending] = useState(false);
 
   // Auto-fill project type if arriving with query parameter from Services or Portfolio
   useEffect(() => {
@@ -160,6 +161,7 @@ export const ContactForm: React.FC = () => {
         );
       }
 
+      setIsActivationPending(!!data?.needsActivation);
       setStatus('success');
     } catch (err) {
       console.error('Submission failed:', err);
@@ -175,6 +177,7 @@ export const ContactForm: React.FC = () => {
   const handleReset = () => {
     setStatus('idle');
     setErrorMessage(null);
+    setIsActivationPending(false);
     setFormData({
       name: '',
       email: '',
@@ -228,7 +231,7 @@ export const ContactForm: React.FC = () => {
                 fontWeight: 700,
               }}
             >
-              ENQUIRY TRANSMITTED // SENT
+              {isActivationPending ? 'SETUP // ACTIVATION EMAIL SENT' : 'ENQUIRY TRANSMITTED // SENT'}
             </span>
           </div>
 
@@ -242,7 +245,7 @@ export const ContactForm: React.FC = () => {
                 margin: 0,
               }}
             >
-              Thank you, {formData.name.trim()}!
+              {isActivationPending ? 'One-Time Activation Required' : `Thank you, ${formData.name.trim()}!`}
             </h3>
             <p
               style={{
@@ -253,9 +256,19 @@ export const ContactForm: React.FC = () => {
                 maxWidth: '48rem',
               }}
             >
-              Your project inquiry has been delivered directly to{' '}
-              <strong style={{ color: 'var(--color-gold)' }}>xyzagency.dev@gmail.com</strong>.
-              Our senior studio directors will review your brief and follow up with a tailored discovery response within 24 hours.
+              {isActivationPending ? (
+                <>
+                  FormSubmit has sent a one-time verification email to{' '}
+                  <strong style={{ color: 'var(--color-gold)' }}>xyzagency.dev@gmail.com</strong>.
+                  Please open your Gmail inbox and click the <strong>&quot;Activate Form&quot;</strong> button. Once activated, this and all future inquiries will automatically deliver directly to your inbox.
+                </>
+              ) : (
+                <>
+                  Your project inquiry has been delivered directly to{' '}
+                  <strong style={{ color: 'var(--color-gold)' }}>xyzagency.dev@gmail.com</strong>.
+                  Our senior studio directors will review your brief and follow up with a tailored discovery response within 24 hours.
+                </>
+              )}
             </p>
           </div>
 
