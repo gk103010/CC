@@ -291,7 +291,9 @@ export const Navbar: React.FC = () => {
                 START A PROJECT
               </Button>
               <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-text-muted)', fontSize: 'var(--font-size-small)' }}>
-                <span>hello@chosencreators.com</span>
+                <a href="mailto:xyzagency.dev@gmail.com" style={{ color: 'inherit', textDecoration: 'none' }}>
+                  xyzagency.dev@gmail.com
+                </a>
                 <span>© {new Date().getFullYear()} CC</span>
               </div>
             </div>

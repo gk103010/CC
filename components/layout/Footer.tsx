@@ -112,7 +112,13 @@ export const Footer: React.FC = () => {
               DIRECT INQUIRIES
             </h3>
             <p className="font-body-sm text-secondary" style={{ marginBottom: 'var(--space-2)' }}>
-              hello@chosencreators.com
+              <a
+                href="mailto:xyzagency.dev@gmail.com"
+                className="footer-email-link"
+                style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.2s ease' }}
+              >
+                xyzagency.dev@gmail.com
+              </a>
             </p>
             <p className="font-caption text-muted">
               New Business & Strategic Partnerships

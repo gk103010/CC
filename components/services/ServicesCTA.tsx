@@ -99,14 +99,14 @@ export const ServicesCTA: React.FC = () => {
           >
             <span>Or reach out directly at</span>
             <a
-              href="mailto:hello@chosencreators.com"
+              href="mailto:xyzagency.dev@gmail.com"
               style={{
                 color: 'var(--color-gold)',
                 textDecoration: 'none',
                 fontWeight: 600,
               }}
             >
-              hello@chosencreators.com
+              xyzagency.dev@gmail.com
             </a>
           </div>
         </div>

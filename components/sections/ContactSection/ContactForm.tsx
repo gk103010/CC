@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export interface ContactFormData {
   name: string;
@@ -25,10 +25,13 @@ const PROJECT_TYPE_OPTIONS = [
   'Web Development',
   'Creative Direction',
   'Motion',
-  '3D',
+  '3D & Spatial',
   'Film / Content',
   'AI Experiences',
-  'Other',
+  'Studio Sprint (2-4 Wks)',
+  'Flagship Transformation (6-10 Wks)',
+  'Embedded Partnership (Retainer)',
+  'Other / Custom Inquiry',
 ];
 
 const BUDGET_OPTIONS = [
@@ -50,8 +53,39 @@ export const ContactForm: React.FC = () => {
     message: '',
   });
 
+  const [honeypot, setHoneypot] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
-  const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'dev_notice'>('idle');
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Auto-fill project type if arriving with query parameter from Services or Portfolio
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const serviceParam = params.get('service') || params.get('interest') || params.get('sprint');
+
+      if (serviceParam) {
+        const normalized = serviceParam.toLowerCase().replace(/[-_]/g, ' ');
+        const matched = PROJECT_TYPE_OPTIONS.find((opt) =>
+          opt.toLowerCase().includes(normalized) || normalized.includes(opt.toLowerCase())
+        );
+
+        if (matched) {
+          setFormData((prev) => ({ ...prev, projectType: matched }));
+        } else if (serviceParam.includes('sprint') || serviceParam.includes('studio')) {
+          setFormData((prev) => ({ ...prev, projectType: 'Studio Sprint (2-4 Wks)' }));
+        } else if (serviceParam.includes('transformation') || serviceParam.includes('flagship')) {
+          setFormData((prev) => ({ ...prev, projectType: 'Flagship Transformation (6-10 Wks)' }));
+        } else if (serviceParam.includes('embedded') || serviceParam.includes('partnership')) {
+          setFormData((prev) => ({ ...prev, projectType: 'Embedded Partnership (Retainer)' }));
+        }
+      }
+    } catch {
+      // Ignore URL parsing errors
+    }
+  }, []);
 
   const validate = (): boolean => {
     const newErrors: FormErrors = {};
@@ -77,8 +111,8 @@ export const ContactForm: React.FC = () => {
     // Message validation
     if (!formData.message.trim()) {
       newErrors.message = 'Please describe your project or inquiry.';
-    } else if (formData.message.trim().length < 10) {
-      newErrors.message = 'Please enter a message with at least 10 characters.';
+    } else if (formData.message.trim().length < 5) {
+      newErrors.message = 'Please enter a message with at least 5 characters.';
     }
 
     setErrors(newErrors);
@@ -103,11 +137,52 @@ export const ContactForm: React.FC = () => {
     }
 
     setStatus('submitting');
+    setErrorMessage(null);
 
-    // Simulate clean form submission handling
-    setTimeout(() => {
-      setStatus('dev_notice');
-    }, 800);
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          ...formData,
+          _honey: honeypot,
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data?.success) {
+        throw new Error(
+          data?.error || 'Failed to dispatch inquiry. Please try again or email directly.'
+        );
+      }
+
+      setStatus('success');
+    } catch (err) {
+      console.error('Submission failed:', err);
+      setStatus('error');
+      setErrorMessage(
+        err instanceof Error
+          ? err.message
+          : 'An unexpected connection error occurred. Please reach out to xyzagency.dev@gmail.com directly.'
+      );
+    }
+  };
+
+  const handleReset = () => {
+    setStatus('idle');
+    setErrorMessage(null);
+    setFormData({
+      name: '',
+      email: '',
+      company: '',
+      projectType: 'Brand Strategy',
+      budget: 'Not sure yet',
+      message: '',
+    });
   };
 
   return (
@@ -117,74 +192,209 @@ export const ContactForm: React.FC = () => {
         backgroundColor: 'var(--color-surface)',
         border: '1px solid var(--color-border-subtle)',
         borderRadius: 'var(--radius-sm)',
-        padding: 'var(--space-8)',
+        padding: 'clamp(1.5rem, 4vw, 2.5rem)',
+        position: 'relative',
       }}
     >
-      {status === 'dev_notice' ? (
+      {/* SUCCESS STATE */}
+      {status === 'success' && (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--space-6)',
+            padding: 'var(--space-6)',
+            border: '1px solid var(--color-gold)',
+            borderRadius: 'var(--radius-sm)',
+            backgroundColor: 'rgba(197, 160, 89, 0.05)',
+          }}
+          role="alert"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+            <span
+              style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                backgroundColor: 'var(--color-gold)',
+              }}
+            />
+            <span
+              style={{
+                fontFamily: 'monospace',
+                fontSize: '0.8125rem',
+                color: 'var(--color-gold)',
+                letterSpacing: '0.1em',
+                fontWeight: 700,
+              }}
+            >
+              ENQUIRY TRANSMITTED // SENT
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+            <h3
+              style={{
+                fontFamily: 'var(--font-family-base)',
+                fontSize: 'clamp(1.5rem, 3vw, 2rem)',
+                fontWeight: 700,
+                color: 'var(--color-text-primary)',
+                margin: 0,
+              }}
+            >
+              Thank you, {formData.name.trim()}!
+            </h3>
+            <p
+              style={{
+                fontSize: '1rem',
+                color: 'var(--color-text-secondary)',
+                lineHeight: 1.6,
+                margin: 0,
+                maxWidth: '48rem',
+              }}
+            >
+              Your project inquiry has been delivered directly to{' '}
+              <strong style={{ color: 'var(--color-gold)' }}>xyzagency.dev@gmail.com</strong>.
+              Our senior studio directors will review your brief and follow up with a tailored discovery response within 24 hours.
+            </p>
+          </div>
+
+          {/* Submission Summary Table */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: 'var(--space-4)',
+              padding: 'var(--space-4)',
+              backgroundColor: 'rgba(0, 0, 0, 0.4)',
+              border: '1px solid var(--color-border-subtle)',
+              borderRadius: '2px',
+              fontSize: '0.8125rem',
+            }}
+          >
+            <div>
+              <span style={{ color: 'var(--color-text-muted)', display: 'block' }}>CONTACT</span>
+              <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>
+                {formData.email}
+              </span>
+            </div>
+            <div>
+              <span style={{ color: 'var(--color-text-muted)', display: 'block' }}>PROJECT FOCUS</span>
+              <span style={{ color: 'var(--color-gold)', fontWeight: 600 }}>
+                {formData.projectType}
+              </span>
+            </div>
+            <div>
+              <span style={{ color: 'var(--color-text-muted)', display: 'block' }}>BUDGET TIER</span>
+              <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>
+                {formData.budget}
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleReset}
+            style={{
+              alignSelf: 'flex-start',
+              background: 'transparent',
+              border: '1px solid var(--color-border-strong)',
+              color: 'var(--color-text-primary)',
+              padding: '0.625rem 1.25rem',
+              borderRadius: 'var(--radius-sm)',
+              cursor: 'pointer',
+              fontSize: '0.8125rem',
+              fontFamily: 'monospace',
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              fontWeight: 600,
+              transition: 'all 0.2s ease',
+            }}
+          >
+            ← Submit Another Inquiry
+          </button>
+        </div>
+      )}
+
+      {/* ERROR STATE */}
+      {status === 'error' && (
         <div
           style={{
             display: 'flex',
             flexDirection: 'column',
             gap: 'var(--space-4)',
-            padding: 'var(--space-6)',
-            border: '1px solid var(--color-accent)',
+            padding: 'var(--space-5)',
+            border: '1px solid #e53e3e',
             borderRadius: 'var(--radius-sm)',
-            backgroundColor: 'var(--color-bg)',
+            backgroundColor: 'rgba(229, 62, 62, 0.08)',
+            marginBottom: 'var(--space-6)',
           }}
           role="alert"
         >
-          <span className="font-meta text-gold" style={{ fontSize: '0.8rem' }}>
-            ENQUIRY FORM VALIDATED
-          </span>
-          <h3 className="font-h3 text-primary" style={{ margin: 0 }}>
-            Thank you, {formData.name.trim()}!
-          </h3>
-          <p className="font-body-md text-secondary" style={{ margin: 0 }}>
-            Your enquiry details for <strong>{formData.projectType}</strong> have been validated cleanly.
-          </p>
-          <div
-            style={{
-              padding: 'var(--space-3) var(--space-4)',
-              backgroundColor: 'var(--color-surface)',
-              borderLeft: '2px solid var(--color-accent)',
-              fontSize: '0.85rem',
-              color: 'var(--color-text-muted)',
-              fontFamily: 'var(--font-family-mono)',
-            }}
-          >
-            The form is ready to connect to the project enquiry service.
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#fc8181' }}>
+            <span style={{ fontWeight: 700 }}>⚠ Submission Notice:</span>
+            <span>{errorMessage}</span>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setStatus('idle');
-              setFormData({
-                name: '',
-                email: '',
-                company: '',
-                projectType: 'Brand Strategy',
-                budget: 'Not sure yet',
-                message: '',
-              });
-            }}
-            style={{
-              alignSelf: 'flex-start',
-              background: 'transparent',
-              border: '1px solid var(--color-border)',
-              color: 'var(--color-text-primary)',
-              padding: 'var(--space-2) var(--space-4)',
-              borderRadius: 'var(--radius-sm)',
-              cursor: 'pointer',
-              fontSize: '0.85rem',
-              fontFamily: 'var(--font-family-mono)',
-              marginTop: 'var(--space-2)',
-            }}
-          >
-            ← SUBMIT ANOTHER ENQUIRY
-          </button>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
+            <a
+              href={`mailto:xyzagency.dev@gmail.com?subject=${encodeURIComponent(
+                `Project Inquiry: ${formData.projectType} - ${formData.name}`
+              )}&body=${encodeURIComponent(
+                `Name: ${formData.name}\nEmail: ${formData.email}\nCompany: ${formData.company}\nProject: ${formData.projectType}\nBudget: ${formData.budget}\n\nMessage:\n${formData.message}`
+              )}`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '0.5rem 1rem',
+                backgroundColor: 'var(--color-gold)',
+                color: '#090909',
+                borderRadius: '2px',
+                textDecoration: 'none',
+                fontSize: '0.8125rem',
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+              }}
+            >
+              Send via Email App to xyzagency.dev@gmail.com →
+            </a>
+            <button
+              type="button"
+              onClick={() => setStatus('idle')}
+              style={{
+                background: 'none',
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-text-secondary)',
+                padding: '0.5rem 1rem',
+                borderRadius: '2px',
+                cursor: 'pointer',
+                fontSize: '0.8125rem',
+              }}
+            >
+              Try Again in Form
+            </button>
+          </div>
         </div>
-      ) : (
-        <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+      )}
+
+      {/* FORM INPUTS */}
+      {status !== 'success' && (
+        <form
+          onSubmit={handleSubmit}
+          noValidate
+          style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}
+        >
+          {/* Honeypot field for bot spam deterrence */}
+          <input
+            type="text"
+            name="_honey"
+            value={honeypot}
+            onChange={(e) => setHoneypot(e.target.value)}
+            style={{ display: 'none', position: 'absolute', opacity: 0, pointerEvents: 'none' }}
+            tabIndex={-1}
+            autoComplete="off"
+            aria-hidden="true"
+          />
+
           {/* Row 1: Name & Email */}
           <div
             style={{
@@ -296,7 +506,7 @@ export const ContactForm: React.FC = () => {
             {/* Project Type */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
               <label htmlFor="projectType" className="font-label text-primary" style={{ fontSize: '0.85rem' }}>
-                PROJECT TYPE <span style={{ color: 'var(--color-accent)' }}>*</span>
+                PROJECT TYPE / DISCIPLINE <span style={{ color: 'var(--color-accent)' }}>*</span>
               </label>
               <select
                 id="projectType"
@@ -366,7 +576,7 @@ export const ContactForm: React.FC = () => {
           {/* Row 4: Message */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
             <label htmlFor="message" className="font-label text-primary" style={{ fontSize: '0.85rem' }}>
-              PROJECT DETAILS & GOALS <span style={{ color: 'var(--color-accent)' }}>*</span>
+              PROJECT DETAILS & OBJECTIVES <span style={{ color: 'var(--color-accent)' }}>*</span>
             </label>
             <textarea
               id="message"
@@ -374,7 +584,7 @@ export const ContactForm: React.FC = () => {
               rows={5}
               value={formData.message}
               onChange={handleChange}
-              placeholder="Describe your vision, timeline, key challenges, or project objectives..."
+              placeholder="Describe your vision, timeline, key goals, or project scope..."
               disabled={status === 'submitting'}
               style={{
                 width: '100%',
@@ -396,13 +606,36 @@ export const ContactForm: React.FC = () => {
             )}
           </div>
 
-          {/* Submit Action Button */}
-          <div style={{ display: 'flex', justifyContent: 'flex-start', paddingTop: 'var(--space-2)' }}>
+          {/* Direct Notice & Submit Action Button */}
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 'var(--space-4)',
+              paddingTop: 'var(--space-2)',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                fontSize: '0.8125rem',
+                color: 'var(--color-text-muted)',
+              }}
+            >
+              <span style={{ color: 'var(--color-gold)' }}>✉</span>
+              <span>Dispatches directly to xyzagency.dev@gmail.com</span>
+            </div>
+
             <button
               type="submit"
               disabled={status === 'submitting'}
               style={{
-                background: status === 'submitting' ? 'var(--color-surface)' : 'var(--color-accent)',
+                background:
+                  status === 'submitting' ? 'var(--color-surface)' : 'var(--color-accent)',
                 color: status === 'submitting' ? 'var(--color-text-muted)' : 'var(--color-canvas)',
                 border: 'none',
                 padding: 'var(--space-4) var(--space-8)',
@@ -416,7 +649,7 @@ export const ContactForm: React.FC = () => {
                 transition: 'all var(--transition-fast)',
               }}
             >
-              {status === 'submitting' ? 'PROCESSING ENQUIRY...' : 'SUBMIT ENQUIRY →'}
+              {status === 'submitting' ? 'DISPATCHING BRIEF...' : 'SUBMIT ENQUIRY →'}
             </button>
           </div>
         </form>
